@@ -1,46 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { TrainingConfig, ModelType } from '../types';
 
-// Store the key in memory at runtime, not in process.env
-let internalApiKey = '';
-
-export const setRuntimeApiKey = (key: string) => {
-  internalApiKey = key;
-};
-
-export const getRuntimeApiKey = () => {
-  return internalApiKey;
-};
-
 const getAiClient = () => {
-  let apiKey = internalApiKey;
-  
-  // Safe check: Only try to access process.env if process is defined (Node.js/Local env)
-  // This prevents "ReferenceError: process is not defined" in browser production builds
-  if (!apiKey && typeof process !== 'undefined' && process.env && process.env.API_KEY) {
-      apiKey = process.env.API_KEY;
-  }
-
-  if (!apiKey) {
-    throw new Error("API Key not found. Please enter it in the top right corner.");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
-export const validateApiKey = async (apiKey: string): Promise<boolean> => {
-  if (!apiKey) return false;
-  try {
-    const ai = new GoogleGenAI({ apiKey });
-    // Minimal request to check auth
-    await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: 'ping',
-    });
-    return true;
-  } catch (error) {
-    console.error("API Key Validation Error:", error);
-    return false;
-  }
+  // Use process.env.API_KEY directly as per strict guidelines
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 export const generatePythonCode = async (config: TrainingConfig): Promise<string> => {
