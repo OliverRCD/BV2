@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { TrainingConfig, ModelType } from '../types';
 
@@ -14,8 +13,14 @@ export const getRuntimeApiKey = () => {
 };
 
 const getAiClient = () => {
-  // Use the internal variable instead of process.env
-  const apiKey = internalApiKey || process.env.API_KEY; 
+  let apiKey = internalApiKey;
+  
+  // Safe check: Only try to access process.env if process is defined (Node.js/Local env)
+  // This prevents "ReferenceError: process is not defined" in browser production builds
+  if (!apiKey && typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      apiKey = process.env.API_KEY;
+  }
+
   if (!apiKey) {
     throw new Error("API Key not found. Please enter it in the top right corner.");
   }
