@@ -1,9 +1,12 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { generatePythonCode, askExpert, getRuntimeApiKey } from '../services/geminiService';
 import { ModelType, TrainingConfig, ChemicalData } from '../types';
 import { AVAILABLE_FEATURES, MOCK_DATA } from '../constants';
 import { read, utils } from 'xlsx';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import remarkGfm from 'remark-gfm';
 
 interface GeneratedFile {
   name: string;
@@ -540,7 +543,13 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
                                 }`}
                              >
                                  {msg.role === 'model' ? (
-                                     <div className="markdown-body text-sm" dangerouslySetInnerHTML={{ __html: msg.content.replace(/\n/g, '<br/>') }} />
+                                    <ReactMarkdown 
+                                        className="markdown-body text-sm"
+                                        remarkPlugins={[remarkMath, remarkGfm]}
+                                        rehypePlugins={[rehypeKatex]}
+                                    >
+                                        {msg.content}
+                                    </ReactMarkdown>
                                  ) : (
                                      <div className="text-sm">{msg.content}</div>
                                  )}
