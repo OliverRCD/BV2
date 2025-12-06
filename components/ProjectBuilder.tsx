@@ -36,14 +36,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
   const [isChatThinking, setIsChatThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const [isLocal, setIsLocal] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Check if running on localhost or 127.0.0.1
-    const hostname = window.location.hostname;
-    setIsLocal(hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '');
-  }, []);
 
   // Scroll to bottom of chat
   useEffect(() => {
@@ -129,16 +122,15 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
   };
 
   const handleTestConnection = () => {
-      if (!isLocal) return;
-      
+      // REMOVED: !isLocal check. Mock data should be available everywhere.
       setConnecting(true);
       // Simulate network request duration
       setTimeout(() => {
           // Explicitly load MOCK_DATA here when the user wants to test with mock data
           onDataLoaded(MOCK_DATA);
-          onConnect(config.dbConfig.host, config.dbConfig.database);
+          onConnect("Mock Environment", "Internal Demo DB");
           setConnecting(false);
-      }, 800);
+      }, 600);
   };
 
   const updateDbConfig = (key: keyof typeof config.dbConfig, value: string) => {
@@ -274,9 +266,9 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
   ];
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[750px]">
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[750px] relative">
       {/* Tabs */}
-      <div className="flex border-b border-slate-200 bg-slate-50 flex-none">
+      <div className="flex border-b border-slate-200 bg-slate-50 flex-none z-10 relative">
         <button
           onClick={() => setActiveTab('config')}
           className={`flex-1 py-4 text-sm font-medium text-center transition-colors ${
@@ -304,9 +296,9 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden relative">
+      <div className="flex-1 relative bg-white">
         {loading && activeTab === 'code' && (
-            <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center space-y-4 backdrop-blur-sm">
+            <div className="absolute inset-0 bg-white/95 z-50 flex flex-col items-center justify-center space-y-4 backdrop-blur-sm">
                 <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
                 <p className="text-slate-700 font-medium animate-pulse">
                     正在构建 Python 项目结构...<br/>
@@ -329,11 +321,13 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
                   <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 shrink-0 mt-0.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                     <div>
-                        <h4 className="text-sm font-bold text-amber-800">关于数据库连接的说明</h4>
+                        <h4 className="text-sm font-bold text-amber-800">关于 Web 端与本地数据库连接的说明</h4>
                         <p className="text-xs text-amber-700 mt-1 leading-relaxed">
-                            浏览器出于安全原因，<b>无法直接通过 TCP 连接</b>本地端口 (3306)。<br/>
-                            1. <b>预览数据</b>：请点击下方“导入 Excel/CSV”按钮，加载您的真实数据以进行可视化。<br/>
-                            2. <b>训练模型</b>：点击“生成代码”，生成的 Python 脚本将在您的本地环境中运行，届时可无障碍连接您的真实数据库。
+                            因浏览器安全策略限制，Web 页面<b>无法直接连接</b>本地数据库 (localhost:3306)。
+                            <ul className="list-disc pl-4 mt-1 space-y-1">
+                                <li><b>数据预览 (当前页面)</b>：请使用右下角的“导入 Excel/CSV”功能，或点击“加载模拟数据”来可视化数据。</li>
+                                <li><b>模型训练 (生成代码)</b>：生成的 Python 工程是标准化的，在您的本地环境运行，届时可以无障碍连接您的真实数据库。</li>
+                            </ul>
                         </p>
                     </div>
                   </div>
@@ -345,6 +339,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
                         type="text"
                         value={config.dbConfig.host}
                         onChange={(e) => updateDbConfig('host', e.target.value)}
+                        placeholder="localhost"
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                     />
                     </div>
@@ -398,16 +393,10 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
 
                       <button
                         onClick={handleTestConnection}
-                        disabled={!isLocal || connecting}
-                        className={`
-                            px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all border border-slate-300
-                            ${!isLocal 
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                                : 'bg-white text-slate-700 hover:bg-slate-50'
-                            }
-                        `}
+                        disabled={connecting}
+                        className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition-all border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                       >
-                        {connecting ? '模拟连接中...' : '使用模拟数据 (Mock)'}
+                        {connecting ? '加载中...' : '加载演示数据 (Mock)'}
                       </button>
                   </div>
               </div>
@@ -504,7 +493,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
           </div>
         )}
 
-        {/* Expert Advice Chat Tab - FIXED: Using absolute positioning for header/footer layout */}
+        {/* Expert Advice Chat Tab - Absolute Positioning Layout */}
         {activeTab === 'advice' && (
              <div className="absolute inset-0 bg-slate-50">
                  {/* Chat History - Pinned from Top to 80px above Bottom */}
