@@ -94,11 +94,11 @@ const DataView: React.FC<DataViewProps> = ({ data, isConnected, dbInfo }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                 </svg>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">等待数据库连接</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">等待数据文件导入</h2>
             <p className="text-slate-500 max-w-md mx-auto mb-6">
-                请在下方的“项目配置”区域中输入您的 MySQL 数据库信息，并点击 
-                <span className="font-semibold text-green-600 mx-1">测试连接</span> 
-                按钮以加载数据。
+                请在下方的“项目配置”区域中输入您的 MySQL 数据库信息，用于项目构建。导入csv/xlsx格式的的文件并点击 
+                <span className="font-semibold text-green-600 mx-1">导入</span> 
+                按钮以加载预览数据。
             </p>
             <div className="text-xs text-slate-400 bg-slate-50 px-4 py-2 rounded-lg font-mono border border-slate-100">
                 Database Status: Disconnected
