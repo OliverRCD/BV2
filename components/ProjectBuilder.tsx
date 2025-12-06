@@ -1,12 +1,12 @@
+
 import React, { useState, useEffect, useRef } from 'react';
-import { generatePythonCode, askExpert } from '../services/geminiService';
+import { generatePythonCode, askExpert, getRuntimeApiKey } from '../services/geminiService';
 import { ModelType, TrainingConfig, ChemicalData } from '../types';
 import { AVAILABLE_FEATURES, MOCK_DATA } from '../constants';
 import { read, utils } from 'xlsx';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
-import remarkGfm from 'remark-gfm';
 
 interface GeneratedFile {
   name: string;
@@ -83,6 +83,11 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
   };
 
   const handleGenerate = async () => {
+    // FIX: Check the runtime key, not process.env
+    if (!getRuntimeApiKey()) {
+      alert("请先在页面右上角输入 Gemini API Key 并点击验证");
+      return;
+    }
     setLoading(true);
     setActiveTab('code');
     setGeneratedFiles([]); 
@@ -97,6 +102,12 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
   };
 
   const handleSendMessage = async (msgOverride?: string) => {
+      // FIX: Check the runtime key, not process.env
+      if (!getRuntimeApiKey()) {
+          alert("请先在页面右上角输入 Gemini API Key 并点击验证");
+          return;
+      }
+      
       const msg = msgOverride || questionInput;
       if (!msg.trim()) return;
 
@@ -293,7 +304,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-hidden relative flex flex-col">
+      <div className="flex-1 overflow-hidden relative">
         {loading && activeTab === 'code' && (
             <div className="absolute inset-0 bg-white/95 z-20 flex flex-col items-center justify-center space-y-4 backdrop-blur-sm">
                 <div className="w-10 h-10 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
@@ -306,7 +317,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
 
         {/* Configuration Tab */}
         {activeTab === 'config' && (
-          <div className="h-full overflow-y-auto p-6 space-y-8">
+          <div className="absolute inset-0 overflow-y-auto p-6 space-y-8">
             
             {/* DB Config */}
             <div className="space-y-4">
@@ -445,7 +456,7 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
 
         {/* Code View - File Explorer Style */}
         {activeTab === 'code' && (
-          <div className="flex h-full">
+          <div className="absolute inset-0 flex">
             {generatedFiles.length > 0 ? (
                 <>
                     {/* Sidebar */}
@@ -493,11 +504,11 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
           </div>
         )}
 
-        {/* Expert Advice Chat Tab */}
+        {/* Expert Advice Chat Tab - FIXED: Using absolute positioning for header/footer layout */}
         {activeTab === 'advice' && (
-             <div className="flex flex-col h-full bg-slate-50">
-                 {/* Chat History */}
-                 <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+             <div className="absolute inset-0 bg-slate-50">
+                 {/* Chat History - Pinned from Top to 80px above Bottom */}
+                 <div className="absolute top-0 left-0 right-0 bottom-[80px] overflow-y-auto p-4 space-y-4">
                      {chatHistory.length === 0 && (
                          <div className="text-center py-10">
                              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -525,20 +536,21 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
                      {chatHistory.map((msg, idx) => (
                          <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                              <div 
-                                className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm break-words overflow-hidden ${
+                                className={`max-w-[80%] rounded-2xl px-5 py-3 shadow-sm ${
                                     msg.role === 'user' 
                                     ? 'bg-blue-600 text-white rounded-br-none' 
                                     : 'bg-white text-slate-800 border border-slate-200 rounded-bl-none'
                                 }`}
                              >
                                  {msg.role === 'model' ? (
-                                    <ReactMarkdown 
-                                        className="markdown-body text-sm"
-                                        remarkPlugins={[remarkMath, remarkGfm]}
-                                        rehypePlugins={[rehypeKatex]}
-                                    >
-                                        {msg.content}
-                                    </ReactMarkdown>
+                                     <div className="markdown-body text-sm">
+                                         <ReactMarkdown 
+                                            remarkPlugins={[remarkMath]}
+                                            rehypePlugins={[rehypeKatex]}
+                                         >
+                                            {msg.content}
+                                         </ReactMarkdown>
+                                     </div>
                                  ) : (
                                      <div className="text-sm">{msg.content}</div>
                                  )}
@@ -558,26 +570,24 @@ const ProjectBuilder: React.FC<ProjectBuilderProps> = ({ onConnect, onDataLoaded
                      <div ref={chatEndRef} />
                  </div>
 
-                 {/* Input Area */}
-                 <div className="p-4 bg-white border-t border-slate-200 flex-none">
-                     <div className="flex gap-2">
-                         <input
-                            type="text"
-                            value={questionInput}
-                            onChange={(e) => setQuestionInput(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                            placeholder="输入问题 (例如: 为什么要用 Arrhenius 特征?)..."
-                            disabled={isChatThinking}
-                            className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50"
-                         />
-                         <button
-                            onClick={() => handleSendMessage()}
-                            disabled={isChatThinking || !questionInput.trim()}
-                            className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                         >
-                             发送
-                         </button>
-                     </div>
+                 {/* Input Area - Fixed at Bottom */}
+                 <div className="absolute bottom-0 left-0 right-0 h-[80px] bg-white border-t border-slate-200 px-4 py-3 flex items-center gap-2">
+                     <input
+                        type="text"
+                        value={questionInput}
+                        onChange={(e) => setQuestionInput(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                        placeholder="输入问题 (例如: 为什么要用 Arrhenius 特征?)..."
+                        disabled={isChatThinking}
+                        className="flex-1 px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50"
+                     />
+                     <button
+                        onClick={() => handleSendMessage()}
+                        disabled={isChatThinking || !questionInput.trim()}
+                        className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                     >
+                         发送
+                     </button>
                  </div>
              </div>
         )}
