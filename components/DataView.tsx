@@ -19,19 +19,32 @@ interface DataViewProps {
     dbInfo: { host: string; db: string } | null;
 }
 
-// Helper to generate a signature key for chemical composition
-// Using toFixed(2) is CRITICAL to avoid floating point errors when comparing imported data
-const getCompositionSignature = (row: ChemicalData) => {
-    return `${(row.SiO2||0).toFixed(2)}-${(row.Al2O3||0).toFixed(2)}-${(row.FexOy||0).toFixed(2)}-${(row.Na2O||0).toFixed(2)}-${(row.K2O||0).toFixed(2)}-${(row.CaO||0).toFixed(2)}-${(row.MgO||0).toFixed(2)}-${(row.TiO2||0).toFixed(2)}`;
+// Helper to generate a signature key based on Remark AND Chemical Composition
+// Logic update: "同一remark值，且化学组分完全一致的才是同一幅图的散点"
+const getGroupSignature = (row: ChemicalData) => {
+    // 1. Remark part
+    const remark = (row.Remark && String(row.Remark).trim().length > 0) 
+        ? String(row.Remark).trim() 
+        : `Sample ${row.sampleID}`;
+
+    // 2. Composition part (Create a fingerprint of 8 major oxides)
+    // Use toFixed(2) to ignore microscopic floating point diffs (e.g. 53.5 vs 53.5000001)
+    const chemSig = [
+        row.SiO2, row.Al2O3, row.FexOy, row.Na2O, 
+        row.K2O, row.CaO, row.MgO, row.TiO2
+    ].map(val => Number(val || 0).toFixed(2)).join('|');
+
+    // Combine them with a separator
+    return `${remark}__SEP__${chemSig}`;
 };
 
 const DataView: React.FC<DataViewProps> = ({ data, isConnected, dbInfo }) => {
-  // Group data by chemical composition
+  // Group data by Unique Signature (Remark + Composition)
   const groupedData = useMemo(() => {
     if (!data || data.length === 0) return {};
     const groups: Record<string, ChemicalData[]> = {};
     data.forEach(row => {
-        const sig = getCompositionSignature(row);
+        const sig = getGroupSignature(row);
         if (!groups[sig]) {
             groups[sig] = [];
         }
@@ -66,20 +79,26 @@ const DataView: React.FC<DataViewProps> = ({ data, isConnected, dbInfo }) => {
   }, [data]);
 
   // Derive display options for the dropdown
-  const sampleOptions = groupKeys.map(sig => {
-      const rows = groupedData[sig];
-      const firstRow = rows[0];
-      // Logic: "sampleID + Remark" or just "sampleID" if remark is null
-      const label = firstRow.Remark 
-        ? `${firstRow.sampleID} - ${firstRow.Remark}` 
-        : `Sample ${firstRow.sampleID}`;
-      return { value: sig, label };
-  });
+  const sampleOptions = useMemo(() => {
+      return groupKeys.map(sig => {
+          // Retrieve the first row of this group to get actual values for the label
+          const groupRows = groupedData[sig];
+          const firstRow = groupRows[0];
+          
+          // Split signature to get the clean Remark name
+          const [remarkPart] = sig.split('__SEP__');
+          
+          // Label format: "Remark (SiO2=XX.XX%)" to distinguish identical remarks with different compositions
+          const label = `${remarkPart} (SiO₂: ${Number(firstRow.SiO2).toFixed(2)}%)`;
+          
+          return { value: sig, label: label };
+      });
+  }, [groupKeys, groupedData]);
 
   // Filter data for the chart and table based on selection
   const currentData = useMemo(() => {
       if (!selectedGroupSignature || !groupedData[selectedGroupSignature]) return [];
-      // Sort by temperature ascending (Low -> High)
+      // Sort by temperature ascending (Low -> High) for correct line plotting
       return [...groupedData[selectedGroupSignature]].sort((a, b) => a.temperature - b.temperature);
   }, [groupedData, selectedGroupSignature]);
 
@@ -94,11 +113,11 @@ const DataView: React.FC<DataViewProps> = ({ data, isConnected, dbInfo }) => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
                 </svg>
             </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">等待数据文件导入</h2>
+            <h2 className="text-xl font-bold text-slate-800 mb-2">等待数据库连接</h2>
             <p className="text-slate-500 max-w-md mx-auto mb-6">
-                请在下方的“项目配置”区域中输入您的 MySQL 数据库信息，用于项目构建。导入csv/xlsx格式的的文件并点击 
-                <span className="font-semibold text-green-600 mx-1">导入</span> 
-                按钮以加载预览数据。
+                请在下方的“项目配置”区域中输入您的 MySQL 数据库信息，并点击 
+                <span className="font-semibold text-green-600 mx-1">测试连接</span> 
+                按钮以加载数据。
             </p>
             <div className="text-xs text-slate-400 bg-slate-50 px-4 py-2 rounded-lg font-mono border border-slate-100">
                 Database Status: Disconnected

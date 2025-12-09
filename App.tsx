@@ -120,7 +120,7 @@ const App: React.FC = () => {
 
       <footer className="bg-white border-t border-slate-200 mt-12 py-8">
         <div className="max-w-7xl mx-auto px-4 text-center text-slate-400 text-sm">
-          <p>Designed by Xu &bull; 专为地球化学分析设计</p>
+          <p>Powered by Google Gemini 2.5 Flash &bull; 专为地球化学分析设计</p>
         </div>
       </footer>
     </div>
